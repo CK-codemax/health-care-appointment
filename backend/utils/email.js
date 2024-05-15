@@ -21,16 +21,11 @@ const newEmail = async options => {
     // html:
   };
 
-  console.log(mailOptions);
+  //console.log(mailOptions);
 
   // 3) Actually send the email
-  //await transporter.sendMail(mailOptions);
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully!');
-  } catch (error) {
-    console.error('Error sending email:', error);
-  }
+  await transporter.sendMail(mailOptions);
+ 
 };
 
 module.exports = newEmail;
