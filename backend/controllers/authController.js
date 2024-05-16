@@ -83,15 +83,6 @@ exports.signup = catchAsync(async (req, res, next) => {
     status : "success",
     message : "Email verification successful",
    })
-   
-   
-    // if (!(user.verifyEmail(code, user.verificationNumber))) {
-    //   return next(new AppError('Incorrect verification number', 401));
-    // }
-  
-    // // 3) If everything ok, send token to client
-    // createSendToken(user, 200, res);
-    
   });
 
 

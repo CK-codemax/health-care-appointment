@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 
@@ -6,6 +7,10 @@ const userRouter = require("./routes/userRoutes");
 const globalErrorHandler = require('./controllers/errorController');
 
 const app = express();
+
+app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
+
 
 
 // 1) MIDDLEWARES
@@ -22,7 +27,9 @@ app.use(express.static(`${__dirname}/public`));
 // });
 
 // 3) ROUTES
-
+app.get('/', (req, res) => {
+  res.status(200).render('base');
+});
 app.use('/api/v1/users', userRouter);
 
 //Error handling for all undefined routes

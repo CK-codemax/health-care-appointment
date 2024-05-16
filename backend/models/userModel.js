@@ -51,6 +51,7 @@ const userSchema = new mongoose.Schema({
     verificationNumber : String,
     verificationNumberExpires : Date,
     lastVerified : Date,
+    //verificationStatus : Boolean,
     verifyNext : Date,
     active: {
       type: Boolean,
@@ -62,7 +63,7 @@ const userSchema = new mongoose.Schema({
   userSchema.methods.sendVerificationMessage = async (user) => {
       // Generate verification number and hash it with cost of 12
       const number = generateVerificationNumber() + '';
-      console.log(number);
+      console.log(number)
       const message = `Verify your email? Submit a POST request with the 6 digit number: ${number}.\nIf you didn't signup for health-care, please ignore this email!`;
   
       // try {
@@ -84,9 +85,13 @@ const userSchema = new mongoose.Schema({
       //   );
       // }
       
-     
+     //Hash verification number and save it to the database
       user.verificationNumber = crypto.createHash('sha256').update(number).digest('hex');
+
+      //Verification number expires in one hour
       user.verificationNumberExpires = Date.now() + 1000 * 3600; 
+
+      //Make lastVerified and verifyNext undefined, so if verification is not completed users are forced to verify before logging in.
       user.lastVerified = undefined;
       user.verifyNext = undefined;
   }
