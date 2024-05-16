@@ -6,7 +6,6 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('./../utils/appError');
 const sendEmail = require('../utils/email');
 
-
 const signToken = id => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN
@@ -46,9 +45,57 @@ exports.signup = catchAsync(async (req, res, next) => {
       password: req.body.password,
       passwordConfirm: req.body.passwordConfirm
     });
-  
+
+    
     createSendToken(newUser, 201, res);
   });
+
+  exports.verifyEmail = catchAsync(async (req, res, next) => {
+    const { verificationNumber } = req.body;
+    const { user } = req;
+    console.log(user)
+
+    
+    if (!verificationNumber) {
+      return next(new AppError('Please provide the verification number sent to your email!', 400));
+    }
+
+     // 1) Get user based on the token
+     const hashedToken = crypto
+     .createHash('sha256')
+     .update(verificationNumber)
+     .digest('hex');
+ 
+  //  const user3 = await User.findOne({
+  //    passwordResetToken: hashedToken,
+  //    passwordResetExpires: { $gt: Date.now() }
+  //  });
+ 
+   // 2) If token has not expired, and there is user, set the new password
+   if (user.verificationNumber !== hashedToken || user.verificationNumberExpires < Date.now()) {
+     return next(new AppError('Verification code is invalid or has expired', 400));
+   }
+
+   user.verificationNumber = undefined;
+   user.verificationNumberExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+   res.status(200).json({
+    status : "success",
+    message : "Email verification successful",
+   })
+   
+   
+    // if (!(user.verifyEmail(code, user.verificationNumber))) {
+    //   return next(new AppError('Incorrect verification number', 401));
+    // }
+  
+    // // 3) If everything ok, send token to client
+    // createSendToken(user, 200, res);
+    
+  });
+
+
 
 
   exports.login = catchAsync(async (req, res, next) => {

@@ -3,4 +3,4 @@
 package-lock.json
 
 #Ignore env variables
-.env
+config.env

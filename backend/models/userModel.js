@@ -2,6 +2,12 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const sendEmail = require('../utils/email');
+const AppError = require('../utils/appError');
+
+function generateVerificationNumber() {
+  return Math.floor(Math.random() * 900000 + 100000); // Generates a random number between 100000 and 999999
+}
 
 
 const userSchema = new mongoose.Schema({
@@ -42,12 +48,49 @@ const userSchema = new mongoose.Schema({
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
+    verificationNumber : String,
+    verificationNumberExpires : Date,
+    lastVerified : Date,
     active: {
       type: Boolean,
       default: true,
       select: false
     }
   });
+
+  userSchema.pre('save', async function(next) {
+    // Only run this function if password was actually modified
+    if (!this.isNew) return next();
+    
+    // Generate verification number and hash it with cost of 12
+    const number = generateVerificationNumber() + '';
+    const message = `Verify your email? Submit a POST request with the 6 digit number: ${number}.\nIf you didn't signup for health-care, please ignore this email!`;
+
+    try {
+      await sendEmail({
+        email: this.email,
+        subject: 'Verify your email',
+        message
+      });
+      
+      // res.status(200).json({
+      //   status: 'success',
+      //   message: 'Verification code sent to email!'
+      // });
+    } catch (err) {
+      console.log(err)
+      return next(
+        new AppError('There was an error sending the email. Try again later!'),
+        500
+      );
+    }
+    
+   
+    this.verificationNumber = crypto.createHash('sha256').update(number).digest('hex');
+    this.verificationNumberExpires = Date.now() + 1000 * 3600; 
+    next();
+  });
+
 
   userSchema.pre('save', async function(next) {
     // Only run this function if password was actually modified
@@ -79,6 +122,13 @@ const userSchema = new mongoose.Schema({
     userPassword
   ) {
     return await bcrypt.compare(candidatePassword, userPassword);
+  };
+
+  userSchema.methods.verifyEmail = function(
+    candidateVerfNum,
+    userVerfNum
+  ) {
+    return crypto.createHash('sha256').update(candidateVerfNum).digest('hex') === userVerfNum
   };
   
   userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
