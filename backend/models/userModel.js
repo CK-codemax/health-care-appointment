@@ -51,6 +51,7 @@ const userSchema = new mongoose.Schema({
     verificationNumber : String,
     verificationNumberExpires : Date,
     lastVerified : Date,
+    verifyNext : Date,
     active: {
       type: Boolean,
       default: true,
@@ -58,38 +59,45 @@ const userSchema = new mongoose.Schema({
     }
   });
 
+  userSchema.methods.sendVerificationMessage = async (user) => {
+      // Generate verification number and hash it with cost of 12
+      const number = generateVerificationNumber() + '';
+      console.log(number);
+      const message = `Verify your email? Submit a POST request with the 6 digit number: ${number}.\nIf you didn't signup for health-care, please ignore this email!`;
+  
+      // try {
+      //   await sendEmail({
+      //     email: user.email,
+      //     subject: 'Verify your email',
+      //     message
+      //   });
+        
+      //   // res.status(200).json({
+      //   //   status: 'success',
+      //   //   message: 'Verification code sent to email!'
+      //   // });
+      // } catch (err) {
+      //   console.log(err)
+      //   return next(
+      //     new AppError('There was an error sending the email. Try again later!'),
+      //     500
+      //   );
+      // }
+      
+     
+      user.verificationNumber = crypto.createHash('sha256').update(number).digest('hex');
+      user.verificationNumberExpires = Date.now() + 1000 * 3600; 
+      user.lastVerified = undefined;
+      user.verifyNext = undefined;
+  }
+
   userSchema.pre('save', async function(next) {
     // Only run this function if password was actually modified
     if (!this.isNew) return next();
     
-    // Generate verification number and hash it with cost of 12
-    const number = generateVerificationNumber() + '';
-    const message = `Verify your email? Submit a POST request with the 6 digit number: ${number}.\nIf you didn't signup for health-care, please ignore this email!`;
-
-    try {
-      await sendEmail({
-        email: this.email,
-        subject: 'Verify your email',
-        message
-      });
-      
-      // res.status(200).json({
-      //   status: 'success',
-      //   message: 'Verification code sent to email!'
-      // });
-    } catch (err) {
-      console.log(err)
-      return next(
-        new AppError('There was an error sending the email. Try again later!'),
-        500
-      );
-    }
-    
-   
-    this.verificationNumber = crypto.createHash('sha256').update(number).digest('hex');
-    this.verificationNumberExpires = Date.now() + 1000 * 3600; 
+    await this.sendVerificationMessage(this);
     next();
-  });
+  }); 
 
 
   userSchema.pre('save', async function(next) {

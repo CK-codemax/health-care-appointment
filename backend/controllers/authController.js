@@ -53,7 +53,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   exports.verifyEmail = catchAsync(async (req, res, next) => {
     const { verificationNumber } = req.body;
     const { user } = req;
-    console.log(user)
+    console.log(user.verificationNumber)
 
     
     if (!verificationNumber) {
@@ -65,11 +65,8 @@ exports.signup = catchAsync(async (req, res, next) => {
      .createHash('sha256')
      .update(verificationNumber)
      .digest('hex');
- 
-  //  const user3 = await User.findOne({
-  //    passwordResetToken: hashedToken,
-  //    passwordResetExpires: { $gt: Date.now() }
-  //  });
+     console.log(hashedToken)
+
  
    // 2) If token has not expired, and there is user, set the new password
    if (user.verificationNumber !== hashedToken || user.verificationNumberExpires < Date.now()) {
@@ -78,6 +75,8 @@ exports.signup = catchAsync(async (req, res, next) => {
 
    user.verificationNumber = undefined;
    user.verificationNumberExpires = undefined;
+   user.lastVerified = Date.now();
+   user.verifyNext = Date.now() + 60 * 24 * 60 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
    res.status(200).json({
@@ -110,6 +109,11 @@ exports.signup = catchAsync(async (req, res, next) => {
   
     if (!user || !(await user.correctPassword(password, user.password))) {
       return next(new AppError('Incorrect email or password', 401));
+    }
+
+    if(Date.now() > user.verifyNext || !user.verifyNext){
+      await user.sendVerificationMessage(user);
+      await user.save({ validateBeforeSave: false });
     }
   
     // 3) If everything ok, send token to client
