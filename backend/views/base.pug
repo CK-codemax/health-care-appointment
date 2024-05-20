@@ -1,1 +1,16 @@
-h1 Welcome to health for all
+doctype html
+html 
+    head 
+        title Health Care Appointments
+        link(rel='stylesheet' href='css/style.css')
+        link(rel='shortcut icon' type='image/png' href='img/favicon.png')
+
+    body
+        h1= name
+        //h1 Welcome to health for all 
+        h1= school.toUpperCase()
+
+        - const posting = 'surgery 1';
+        p This is just some text #{posting}
+        p= posting
+

@@ -6,6 +6,15 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('./../utils/appError');
 const sendEmail = require('../utils/email');
 
+const filterObj = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach(el => {
+    if (allowedFields.includes(el)) newObj[el] = obj[el];
+  });
+  return newObj;
+};
+
+
 const signToken = id => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN
@@ -53,7 +62,7 @@ exports.signup = catchAsync(async (req, res, next) => {
   exports.verifyEmail = catchAsync(async (req, res, next) => {
     const { verificationNumber } = req.body;
     const { user } = req;
-    console.log(user.verificationNumber)
+    console.log(user.verificationNumber, user)
 
     
     if (!verificationNumber) {
@@ -63,7 +72,7 @@ exports.signup = catchAsync(async (req, res, next) => {
      // 1) Get user based on the token
      const hashedToken = crypto
      .createHash('sha256')
-     .update(verificationNumber)
+     .update(verificationNumber.trim())
      .digest('hex');
      console.log(hashedToken)
 
@@ -77,6 +86,11 @@ exports.signup = catchAsync(async (req, res, next) => {
    user.verificationNumberExpires = undefined;
    user.lastVerified = Date.now();
    user.verifyNext = Date.now() + 60 * 24 * 60 * 60 * 1000;
+   if(user.newEmail){
+    user.email = user.newEmail;
+    user.newEmail = undefined;
+    user.emailChangedAt = Date.now() - 1000;
+   }
     await user.save({ validateBeforeSave: false });
 
    res.status(200).json({
@@ -144,11 +158,17 @@ exports.signup = catchAsync(async (req, res, next) => {
     }
   
     // 4) Check if user changed password after the token was issued
-    if (currentUser.changedPasswordAfter(decoded.iat)) {
+    if (currentUser.changedPasswordAfter(decoded.iat) || currentUser.changedEmailAfter(decoded.iat)) {
       return next(
-        new AppError('User recently changed password! Please log in again.', 401)
+        new AppError('User recently changed password or email! Please log in again.', 401)
       );
     }
+
+    // if (currentUser.changedEmailAfter(decoded.iat)) {
+    //   return next(
+    //     new AppError('User recently changed email! Please log in again.', 401)
+    //   );
+    // }
   
     // GRANT ACCESS TO PROTECTED ROUTE
     req.user = currentUser;
@@ -257,6 +277,41 @@ exports.signup = catchAsync(async (req, res, next) => {
   
     // 4) Log user in, send JWT
     createSendToken(user, 200, res);
+  });
+
+  exports.changeEmail = catchAsync(async (req, res, next) => {
+    if (!req.body.email) {
+      return next(
+        new AppError(
+          'Please enter the email you want to change to.',
+          400
+        )
+      );
+    }
+
+    if (req.body.email === req.user.email) {
+      return next(
+        new AppError(
+          'Please enter the new email you want to change to.',
+          400
+        )
+      );
+    }
+   
+    const updatedUser = await User.findByIdAndUpdate(req.user.id,  { $set: { newEmail: req.body.email } }, {
+      new: true,
+      runValidators: true
+    });
+
+    await updatedUser.sendVerificationMessage(updatedUser, 'change');
+    await updatedUser.save({ validateBeforeSave: false });
+    res.status(200)
+    .json({
+      status : "success",
+      message : "Verification number has been sent to your email, please verify your email",
+      updatedUser,
+    })
+
   });
   
   

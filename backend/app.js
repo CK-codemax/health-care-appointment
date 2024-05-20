@@ -27,9 +27,17 @@ app.use(express.static(`${__dirname}/public`));
 // });
 
 // 3) ROUTES
+
+//Dynamic routes using pug extension
 app.get('/', (req, res) => {
-  res.status(200).render('base');
+  res.status(200).render('base', {
+    name : "Whoro Ochuko",
+    school : "ui",
+  });
 });
+
+
+//API routes
 app.use('/api/v1/users', userRouter);
 
 //Error handling for all undefined routes
